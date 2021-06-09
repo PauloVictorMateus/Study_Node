@@ -1,5 +1,5 @@
 const express = require('express');
-const {uuid} = require('uuidv4');
+const {uuid, isUuid} = require('uuidv4');
 
 const app = express();
 
@@ -22,8 +22,38 @@ app.use(express.json());
  * Request Body: Conteúdo na hora de criar ou editar um recurso (JSON).
  */
 
+/**
+ * Middleware
+ * 
+ * Interceptador de requisições que pode interromper totalmente uma requisição ou alterar dados de uma requisição.
+ */
+
 const projects = [];
 
+function logRequests(request, response, next) {
+    const { method, url} = request;
+
+    const logLabel = `[${method.toUpperCase()}] ${url}`;
+
+    console.time(logLabel);
+
+    next(); // Próximo middleware
+
+    console.timeEnd(logLabel);
+}
+
+function validateProjectId(request, response, next) {
+    const { id } = request.params;
+
+    if (!isUuid(id)) {
+        return response.status(400).json({ error: 'Invalid project id!'});
+    } // Middleware de Interrupção ( Mesmo que tenha um return next() não será possível ir ao próximo passo).
+
+    return next();
+}
+
+app.use(logRequests);
+app.use('/projects/:id', validateProjectId);
 
 app.get('/projects', (request, response) =>{
     const { title } = request.query;
@@ -50,7 +80,7 @@ app.put('/projects/:id', (request, response) =>{
     const {id} = request.params;
     const {title, owner} = request.body;
    
-    const projectIndex = projects.findIndex(project => project.id == id);
+    const projectIndex = projects.findIndex(project => project.id == id); // Varredura no Array, para procurar se o Id do Projeto é igual ao Id procurado.
 
     if(projectIndex < 0) {
         return response.status(400).json({ error: 'Project not found x_x'})
